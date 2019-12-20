@@ -1,0 +1,666 @@
+<HTML>
+<HEAD><TITLE>Text Tool</TITLE>
+
+<!-- <script type="text/javascript" src="jquery-1.11.1.min.js" ></script> -->
+<script
+  src="https://code.jquery.com/jquery-1.12.4.min.js"
+  integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ="
+  crossorigin="anonymous"></script>
+
+<!-- <script type="text/javascript" src="jquery.csv-0.71.js" ></script> -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/1.0.5/jquery.csv.min.js" integrity="sha256-zGo0JbZ5Sn6wU76MyVL0TrUZUq5GLXaFnMQCe/hSwVI=" crossorigin="anonymous"></script>
+
+
+<SCRIPT lang="JavaScript" type="text/javascript">
+    var recordDelimiter = "\n";
+
+
+    function alignRowsInColumns(inputData) 
+    {
+        var matrix = inputFieldToMatrix(inputData)
+
+        // make a master unique list of values from all the value in all the columns
+        var oneArray = combineArraysIntoOneArray(matrix);
+        oneArray = oneArray.unique();
+        oneArray.sort();
+
+        // we want to work on columns not rows easily so let's transpose it
+        matrix = transpose(matrix);
+
+        // create a array that will hold out results
+        var newMatrix = createArray(matrix.length, oneArray.length);
+
+        // loop through each value and figure out which array it should be in
+        // if it is missing from an array insert a blank element
+        for (i = 0; i < oneArray.length; i++)
+        {
+            var value = oneArray[i];
+
+            for (colIdx = 0; colIdx < matrix.length; colIdx++)
+            {
+                var column = matrix[colIdx];
+
+                // if found value in column then add it to the new version of that column
+                if (column.indexOf(value) >= 0) {
+                    newMatrix[colIdx][i] = value;
+                }
+                else { // not found so leave a blank element in the array 
+                    newMatrix[colIdx][i] = null;
+                }
+            }
+        }
+        
+        // transpose the rows and columns for the user to see
+        newMatrix = transpose(newMatrix);
+
+        // print back out to user to see
+        return formatMatrixAsString(newMatrix);
+
+    }
+
+    function createArray(length) {
+        var arr = new Array(length || 0),
+            i = length;
+
+        if (arguments.length > 1) {
+            var args = Array.prototype.slice.call(arguments, 1);
+            while (i--) arr[length - 1 - i] = createArray.apply(this, args);
+        }
+
+        return arr;
+    }
+
+    function sortColumns(inputData) {
+        var matrix = inputFieldToMatrix(inputData)
+
+
+        // the sort function works on the array level so we need to make each column an array
+        matrix = transpose(matrix);
+        
+        // sort each column (which is really a row(array) in first array)
+        for (rowIdx = 0; rowIdx < matrix.length; rowIdx++)
+        {
+            var row = matrix[rowIdx];
+            row.sort();
+        }
+
+        // now that we did the sorting, transpose rows and columns again
+        matrix = transpose(matrix);
+
+        // print back out to user to see
+        return formatMatrixAsString(matrix);
+
+    }
+
+    function formatMatrixAsString(matrix)
+    {
+        var fieldDelimiter = document.forms[0].FieldDelimiter.value;
+        if (fieldDelimiter == "tab") {
+            fieldDelimiter = "\t";
+        }
+
+        var output = "";
+        // print back out to user to see
+        for (rowIdx = 0; rowIdx < matrix.length; rowIdx++) {
+            var row = matrix[rowIdx];
+
+            for (colIdx = 0; colIdx < row.length; colIdx++) {
+                if (row[colIdx] == null) {
+                    output += "";
+                }
+                else {
+                    output += row[colIdx];
+                }
+
+                // add a delimiter back to output if it isn't the last row
+                if (colIdx < row.length-1)
+                {
+                    output += fieldDelimiter;
+                }
+            }
+
+            output += "\r\n";
+        }
+        return output;
+    }
+
+    
+    // converts a matrix to a one dimensional array with unique elements
+    function combineArraysIntoOneArray(matrix) {
+        // the sort function works on the array level so we need to make each column an array
+        matrix = transpose(matrix);
+
+        var oneArray = new Array();
+
+        // sort each column (which is really a row(array) in first array)
+        for (rowIdx = 0; rowIdx < matrix.length; rowIdx++) {
+            var row = matrix[rowIdx];
+            oneArray = oneArray.concat(row);
+        }
+
+        return oneArray;
+    }
+
+    Array.prototype.unique = function () {
+        var a = this.concat();
+        for (var i = 0; i < a.length; ++i) {
+            for (var j = i + 1; j < a.length; ++j) {
+                if (a[i] === a[j])
+                    a.splice(j--, 1);
+            }
+        }
+
+        return a;
+    };
+
+    function inputFieldToMatrix(inputData) {
+        var fieldDelimiter = document.forms[0].FieldDelimiter.value;
+        if (fieldDelimiter == "tab") {
+            fieldDelimiter = "\t";
+        }
+
+        // change it to a csv format
+        inputData = replaceString(inputData, fieldDelimiter, ",");
+        var input = convertEOLtoRecordDelimiter(inputData);
+
+        // parse csv into matrix
+        var matrix = $.csv.toArrays(input);
+        return matrix;
+    }
+
+
+    function combineIntoOneUniqueColumn(inputData) {
+        var matrix = inputFieldToMatrix(inputData)
+
+        // combine matrix into a single array (includes duplicates and not sorted)
+        var oneArray = combineArraysIntoOneArray(matrix);
+        oneArray = oneArray.unique();
+        oneArray.sort();
+        var output = "";
+
+        // print back out to user to see
+        for (rowIdx = 0; rowIdx < oneArray.length; rowIdx++) {
+            output += oneArray[rowIdx];
+            output += "\r\n";
+        }
+
+        return output;
+
+    }
+
+    function transpose(a) {
+        return a[0].map(function (_, c) { return a.map(function (r) { return r[c]; }); });
+    }
+
+    function convertEOLtoRecordDelimiter(text)
+    {
+        var newStr = replaceString(text, "\r\n", recordDelimiter);
+        newStr = replaceString(newStr, "\r", recordDelimiter);
+        newStr = replaceString(newStr, "\n", recordDelimiter);
+        // remove any blank lines
+        newStr = replaceString(newStr, recordDelimiter + recordDelimiter, recordDelimiter);
+        
+        // check to see if the last character is the recordDelimiter. 
+        // If it is, we don't need it, so remove it
+        var lastCharacter = newStr.substring(newStr.length - 1, newStr.length);
+        if (lastCharacter == recordDelimiter)
+        {
+            newStr = newStr.substring(0, newStr.length - 1);
+        }
+        return newStr;
+    }
+    
+
+
+	function genStubs(inputData, template) {
+		var fieldDelimiter = document.forms[0].FieldDelimiter.value;
+		if (fieldDelimiter == "tab") {
+		    fieldDelimiter = "\t";
+		}
+		else {
+		    inputData = replaceString(inputData, fieldDelimiter, "\t");
+		    fieldDelimiter = "\t";
+		}
+
+		var input = convertEOLtoRecordDelimiter(inputData);
+		
+		var lines = input.split(recordDelimiter);
+		var output = "";
+				
+		// use the first line to determine how many fields the other lines should contain
+		var numFieldTokens = lines[0].split(fieldDelimiter).length;
+		
+
+      	for (i=0; i<lines.length; i++) {
+      	    var fields = lines[i].split(fieldDelimiter);
+      	   
+      	    
+			
+				//only parse line if it has the same number of tokens
+			if (fields.length == numFieldTokens) {
+					
+				var lineOutput = template;
+				
+				for (fieldIdx=0; fieldIdx<fields.length; fieldIdx++) 
+				{
+					// literal / no changes to capitalization
+					lineOutput = replaceString(lineOutput, "field" + (fieldIdx + 1), fields[fieldIdx]);
+					
+					// cap first letter
+					lineOutput = replaceString(lineOutput, "Field" + (fieldIdx + 1), capFirstLetter(fields[fieldIdx]));
+					
+					// camelCase
+					lineOutput = replaceString(lineOutput, "fieldName" + (fieldIdx + 1), camelCase(fields[fieldIdx]));
+					
+					// upper CamelCase
+					lineOutput = replaceString(lineOutput, "FieldName" + (fieldIdx + 1), upperCamelCase(fields[fieldIdx]));
+					
+					// all Caps with hyphens between words
+					lineOutput = replaceString(lineOutput, "FIELD_NAME" + (fieldIdx + 1), allCapsHyphenated(fields[fieldIdx]));
+					
+					// lower sentence like
+					lineOutput = replaceString(lineOutput, "field name" + (fieldIdx + 1), lowerCaseSentence(fields[fieldIdx]));
+
+                    // UpperCamelCase sentence like
+					lineOutput = replaceString(lineOutput, "Field Name" + (fieldIdx + 1), upperCamelCaseSentence(fields[fieldIdx]));
+
+                    // camelCase sentence like
+					lineOutput = replaceString(lineOutput, "field Name" + (fieldIdx + 1), camelCaseSentence(fields[fieldIdx]));
+
+				}
+				
+				output += lineOutput;
+			}
+			else {
+			    alert("Different number of fields on the following record: " + lines[i] + ". This record will not show in the output.");
+
+			} //end else-if	
+      	} //end line for
+
+
+		writeOutput(output);
+		
+	}
+
+
+	function writeOutput(value) {
+		document.forms[0].OUTPUT.value = value;
+	}
+
+
+	function capFirstLetter(value) {
+		var cappedFirstLetter = value.charAt(0).toUpperCase();
+		return cappedFirstLetter + value.substring(1, value.length);
+	}
+	
+	function lowerCaseSentence(text)
+	{
+	    var result = "";
+	    var wordsArray = getWords(text);
+	
+	    for (var i=0; i<wordsArray.length; i++)
+	    {
+	        wordsArray[i] = wordsArray[i];
+	    }
+	    
+	    result += wordsArray.join(" ");
+	    
+	    return result;
+	}
+	
+	function upperCamelCaseSentence(text)
+	{
+	    var result = "";
+	    var wordsArray = getWords(text);
+	
+	    for (var i=0; i<wordsArray.length; i++)
+	    {
+	        wordsArray[i] = upperCamelCase(wordsArray[i]);
+	    }
+	    
+	    result += wordsArray.join(" ");
+	    
+	    return result;
+	}
+	
+	function camelCaseSentence(text)
+	{
+	    var result = "";
+	    var wordsArray = getWords(text);
+	
+	    for (var i=0; i<wordsArray.length; i++)
+	    {
+	        wordsArray[i] = camelCase(wordsArray[i]);
+	    }
+	    
+	    result += wordsArray.join(" ");
+	    
+	    return result;
+	}
+	
+	
+	
+	function camelCase(text)
+	{
+	    var result = "";
+	    var wordsArray = getWords(text);
+	    
+	    // first word is lowercase
+	    if (wordsArray.length > 0)
+	    {
+	        result += wordsArray[0];
+	    }
+	    
+	    // all words (following first word) have first letter of word capped
+	    for (var i=1; i<wordsArray.length; i++)
+	    {
+	        result += capFirstLetter(wordsArray[i]);
+	    }
+	    
+	    return result;
+	}
+	
+	function upperCamelCase(text)
+	{
+	    var result = "";
+	    var wordsArray = getWords(text);
+	    
+	    // all words (including the first word) have first letter of word capped
+	    for (var i=0; i<wordsArray.length; i++)
+	    {
+	        result += capFirstLetter(wordsArray[i]);
+	    }
+	    
+	    return result;
+	}
+	
+	function allCapsHyphenated(text)
+	{
+	    var result = "";
+	    var wordsArray = getWords(text);
+	
+	    for (var i=0; i<wordsArray.length; i++)
+	    {
+	        wordsArray[i] = wordsArray[i].toUpperCase();
+	    }
+	    
+	    result += wordsArray.join("_");
+	    
+	    return result;
+	}
+	
+	// determines how words are separated and splits into array of words
+	// returns an array of words (words are changed to all lowercase)
+	function getWords(text)
+	{
+	    var wordsArray = new Array();
+	
+	    // text is only one character long, then return it in an array
+        if (text.length == 1) 
+        {
+            wordsArray[0] = text.toLowerCase();
+            return wordsArray;
+        }
+                
+	    var wordsArray = new Array();
+	    var numWords = 0;
+        var curWordStartIdx = 0;
+        var curWordEndIdx = 0;
+        var prevChar = "";
+	    for (var i=0; i<text.length; i++)
+	    {
+	        var ch = text.substring(i, i+1);
+	        
+	        // if first character, then we have the start of a word by definition
+	        if (i == 0)
+            {
+                curWordStartIdx = 0;
+            }
+            
+            else if (i == text.length-1)
+            {
+                wordsArray[numWords] = text.substring(curWordStartIdx).toLowerCase(); // take substring to end of text
+                // we could update the numWords, and curWordStartIdx, but we are done processing, so why...
+            }
+	        
+	        else if(isCurrentCharStartOfNewWord(prevChar, ch))
+	        {
+	            wordsArray[numWords] = text.substring(curWordStartIdx, i).toLowerCase();
+	            numWords++;
+	            
+	            curWordStartIdx = i;
+	            
+	        }
+	        
+	        prevChar = ch;
+	    } //end for
+	    
+	    return wordsArray;
+	}
+	
+	// returns true if current character (ch) is considered the start of new word
+	function isCurrentCharStartOfNewWord(prevChar, ch)
+	{
+	    if (isLetter(prevChar))
+	    {
+	        if (isLowerCaseLetter(prevChar) && isUpperCaseLetter(ch))
+	        {
+	            return true;
+	        }
+	    }
+        else if (isNumber(prevChar) && (isUpperCaseLetter(ch) || isSpecialWordSeparator(ch)))
+        {
+            return true;
+        }
+        else if (isSpecialWordSeparator(prevChar))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+	}
+	
+	function isUpperCaseLetter(ch)
+	{
+	    return ch.toUpperCase() == ch;
+	}
+	
+	function isLowerCaseLetter(ch)
+	{
+	    return ch.toLowerCase() == ch;
+	}
+	
+	function isLetter(ch)
+	{
+	    return "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".indexOf(ch) != -1;
+	}
+	
+	function isNumber(ch)
+	{
+	    return "0123456789".indexOf(ch) != -1;
+	}
+	
+	// returns true if character is hyphen or underscore
+	function isSpecialWordSeparator(ch)
+	{
+	    return "-_".indexOf(ch) != -1;
+	}
+	
+	
+	
+	
+    function commasToLines(text)
+    {
+        text = convertEOLtoRecordDelimiter(text);
+        text = replaceString(text, recordDelimiter, "");
+        text = replaceString(text, ", ", ",");
+        text = replaceString(text, ", ", ",");
+        text = replaceString(text, ",", recordDelimiter);
+        return text; 
+    }
+
+/**
+ * @name replaceString
+ *
+ * @desc Replaces oldStr with newStr in the string fullString.
+ *
+ * @param fullStr string -The changed string
+ * @param oldStr string -The string to be changed
+ * @param newStr string -The changes to the old string
+ * @return the changed string (fullStr is implicitly changed also, it is returned for convenience)
+ * @since utilities.js v1.0
+ */
+function replaceString(fullStr, oldStr, newStr) {
+	for (var i=0; i<fullStr.length; i++) {
+		if(fullStr.substring(i,i+oldStr.length) == oldStr) {
+			fullStr = fullStr.substring(0,i)+newStr+fullStr.substring(i+oldStr.length, fullStr.length);
+		}//end if
+	}//end for
+	
+	return fullStr;
+
+}//end replaceString
+
+function setSelectionRange(input, selectionStart, selectionEnd) {
+  if (input.setSelectionRange) {
+    input.focus();
+    input.setSelectionRange(selectionStart, selectionEnd);
+  }
+  else if (input.createTextRange) {
+    var range = input.createTextRange();
+    range.collapse(true);
+    range.moveEnd('character', selectionEnd);
+    range.moveStart('character', selectionStart);
+    range.select();
+  }
+}
+
+function replaceSelection (input, replaceString) {
+	if (input.setSelectionRange) {
+		var selectionStart = input.selectionStart;
+		var selectionEnd = input.selectionEnd;
+		input.value = input.value.substring(0, selectionStart)+ replaceString + input.value.substring(selectionEnd);
+    
+		if (selectionStart != selectionEnd){ 
+			setSelectionRange(input, selectionStart, selectionStart + 	replaceString.length);
+		}else{
+			setSelectionRange(input, selectionStart + replaceString.length, selectionStart + replaceString.length);
+		}
+
+	}else if (document.selection) {
+		var range = document.selection.createRange();
+
+		if (range.parentElement() == input) {
+			var isCollapsed = range.text == '';
+			range.text = replaceString;
+
+			 if (!isCollapsed)  {
+				range.moveStart('character', -replaceString.length);
+				range.select();
+			}
+		}
+	}
+}
+
+
+// We are going to catch the TAB key so that we can use it, Hooray!
+function catchTab(item,e){
+	if(navigator.userAgent.match("Gecko")){
+		c=e.which;
+	}else{
+		c=e.keyCode;
+	}
+	if(c==9){
+		replaceSelection(item,String.fromCharCode(9));
+		setTimeout("document.getElementById('"+item.id+"').focus();",0);	
+		return false;
+	}
+		    
+}
+
+function removeKeyWords(str)
+{
+
+    //NOTE: You don't have to escape backslashes using this syntax instead of
+    //new RegExp() syntax that uses a string literal
+    // the g = global replace (replace all)
+    // the i = ignore case
+    var keywords = new Array
+    (   
+        /\[/gi,
+        /\]/gi,
+        /(\sNOT)?\sNULL/gi,
+        /\svarchar\(\d+\)/gi,
+        /\snvarchar\(\d+\)/gi,
+        /\sint/gi,
+        /\sdatetime/gi,
+        /\sidentity\(.*\)/gi
+    );
+
+    for (var i=0; i<keywords.length; i++)
+    {
+        str = str.replace(keywords[i], "");
+    }
+
+    return str;
+}
+
+// removed trailing and leading whitespace
+function trimWhiteSpace(str)
+{
+    str = str.replace(/^\W/gim, "");
+    str = str.replace(/\W$/gim, "");
+    return str;
+}
+
+function removeBlankLines(str) {
+    str = str.replace(/\n\n/gim, "\n")
+    return str;
+}
+
+
+
+</SCRIPT>
+
+</HEAD>
+<BODY>
+
+<FORM>
+
+  <B>Input:</B>   
+  <INPUT TYPE="BUTTON" VALUE="Convert Commas to Lines" onclick='document.forms[0].INPUT.value = commasToLines(document.forms[0].INPUT.value);'>
+  <INPUT TYPE="BUTTON" VALUE="Remove Keywords" onclick='document.forms[0].INPUT.value = removeKeyWords(document.forms[0].INPUT.value);' />
+  <INPUT TYPE="BUTTON" VALUE="Trim Whitespace" onclick='document.forms[0].INPUT.value = trimWhiteSpace(document.forms[0].INPUT.value);' />
+  <INPUT TYPE="BUTTON" VALUE="Remove Blank Lines" onclick='document.forms[0].INPUT.value = removeBlankLines(document.forms[0].INPUT.value);' />
+  <INPUT TYPE="BUTTON" VALUE="Sort Columns" onclick='document.forms[0].INPUT.value = sortColumns(document.forms[0].INPUT.value);' />
+  <INPUT TYPE="BUTTON" VALUE="Combine Columns into One Unique Column" onclick='document.forms[0].INPUT.value = combineIntoOneUniqueColumn(document.forms[0].INPUT.value);' />
+  <INPUT TYPE="BUTTON" VALUE="Align Rows in Columns" onclick='document.forms[0].INPUT.value = alignRowsInColumns(document.forms[0].INPUT.value);' />
+    
+    <BR><TEXTAREA COLS="90" ROWS="10" NAME="INPUT" onkeydown="return catchTab(this,event)">a	b
+c	d
+</TEXTAREA>
+  <P><BR>
+  <B>Field Delimiter:</B> <INPUT NAME="FieldDelimiter" TYPE=TEXT SIZE=2 MAXLENGTH=5 value="tab"><P><BR>
+  <B>Template:</B><BR />
+  <TEXTAREA COLS="90" ROWS="15" NAME="TEMPLATE" onkeydown="return catchTab(this,event)">field1|field2
+Field1|Field2
+FieldName1|FieldName2
+fieldName1|fieldName2
+FIELD_NAME1|FIELD_NAME2
+field name1|field name2
+field Name1|field Name2
+
+</TEXTAREA>
+  <P><BR>
+
+  <INPUT TYPE="BUTTON" onclick='genStubs(document.forms[0].INPUT.value, document.forms[0].TEMPLATE.value);' VALUE="Generate">
+  <P><BR>
+  <B>Generated Code:</B><BR>
+  <TEXTAREA COLS="90" ROWS="30" NAME="OUTPUT" onkeydown="return catchTab(this,event)"></TEXTAREA>
+</FORM>
+
+</BODY>
+</HTML>
